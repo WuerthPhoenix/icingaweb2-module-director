@@ -478,8 +478,12 @@ class IcingaConfig
             ;
 
         if (! $this->isLegacy()) {
-            $this->configFile('zones.d/director-global/commands')
-                ->prepend("library \"methods\"\n\n");
+            $this->configFile(
+                sprintf(
+                    'director/%s/commands',
+                    $this->connection->getDefaultGlobalZoneName()
+                )
+            )->prepend("library \"methods\"\n\n");
         }
 
         PrefetchCache::forget();
