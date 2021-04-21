@@ -2784,6 +2784,14 @@ abstract class IcingaObject extends DbObject implements IcingaConfigRenderer
         return $this;
     }
 
+    public function toApiObject(
+        $resolved = false,
+        $skipDefaults = false
+    ) {
+        $plainObj = $this->toPlainObject($resolved, $skipDefaults);
+        return $plainObj;
+    }
+
     /**
      * @param bool $resolved
      * @param bool $skipDefaults

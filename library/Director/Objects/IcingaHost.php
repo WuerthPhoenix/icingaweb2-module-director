@@ -282,6 +282,36 @@ class IcingaHost extends IcingaObject implements ExportInterface
         return (object) $props;
     }
 
+    public function toApiObject($resolved = false, $skipDefaults = false)
+    {
+        $plainObj = parent::toApiObject($resolved, $skipDefaults);
+
+        $propertiesToBeRemoved = array(
+            'id',
+            'object_name',
+            'object_type',
+            'disabled',
+            'check_command_id',
+            'check_period_id',
+            'event_command_id',
+            'zone_id',
+            'command_endpoint_id',
+            'has_agent',
+            'master_should_connect',
+            'accept_config',
+            'api_key',
+            'template_choice_id'
+        );
+
+        foreach ((array)$plainObj as $prop => $value) {
+            if (in_array($prop, $propertiesToBeRemoved)) {
+                unset($plainObj->$prop);
+            }
+        }
+
+        return $plainObj;
+    }
+
     /**
      * @param $plain
      * @param Db $db

@@ -76,7 +76,7 @@ class IcingaModifiedAttribute extends DbObject {
         if ($action === 'modify') {
             $properties = $object->getModifiedProperties();
         } elseif ($action === 'create') {
-            $properties = $object->toPlainObject(true, true);
+            $properties = $object->toApiObject(true, true);
         }
         return Json::encode($properties);
     }
