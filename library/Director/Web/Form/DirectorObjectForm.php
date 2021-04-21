@@ -8,6 +8,7 @@ use Icinga\Authentication\Auth;
 use Icinga\Module\Director\Db;
 use Icinga\Module\Director\Data\Db\DbObject;
 use Icinga\Module\Director\Data\Db\DbObjectWithSettings;
+use Icinga\Module\Director\DirectorObject\IcingaModifiedAttribute;
 use Icinga\Module\Director\Exception\NestingError;
 use Icinga\Module\Director\Hook\IcingaObjectFormHook;
 use Icinga\Module\Director\IcingaConfig\StateFilterSet;
@@ -15,6 +16,7 @@ use Icinga\Module\Director\IcingaConfig\TypeFilterSet;
 use Icinga\Module\Director\Objects\IcingaTemplateChoice;
 use Icinga\Module\Director\Objects\IcingaCommand;
 use Icinga\Module\Director\Objects\IcingaObject;
+use Icinga\Module\Director\Resolver\LiveModificationResolver;
 use Icinga\Module\Director\Util;
 use Icinga\Module\Director\Web\Form\Element\ExtensibleSet;
 use Icinga\Module\Director\Web\Form\Validate\NamePattern;
@@ -662,7 +664,11 @@ abstract class DirectorObjectForm extends DirectorForm
     public function onSuccess()
     {
         $object = $this->object();
+        $liveModificationResolver = new LiveModificationResolver($this->db);
+        $canBeAppliedLive = $liveModificationResolver->canBeAppliedLive($object);
+
         if ($object->hasBeenModified()) {
+            $icingaModifiedAttribute = IcingaModifiedAttribute::prepareIcingaModifiedAttributeForSingleObject($object);
             if (! $object->hasBeenLoadedFromDb()) {
                 $this->setHttpResponseCode(201);
             }
@@ -673,7 +679,13 @@ abstract class DirectorObjectForm extends DirectorForm
                 : $this->translate('A new %s has successfully been created'),
                 $this->translate($this->getObjectShortClassName())
             );
-                $object->store($this->db);
+
+            $object->store($this->db);
+
+            if ($canBeAppliedLive) {
+                $liveModificationResolver->insertSingleObjectModification($icingaModifiedAttribute);
+            }
+
         } else {
             if ($this->isApiRequest()) {
                 $this->setHttpResponseCode(304);
@@ -890,6 +902,12 @@ abstract class DirectorObjectForm extends DirectorForm
 
     protected function deleteObject($object)
     {
+        $object->markForRemoval(true);
+        $liveModificationResolver = new LiveModificationResolver($this->db);
+        $canBeAppliedLive = $liveModificationResolver->canBeAppliedLive($object);
+        $icingaModifiedAttribute = IcingaModifiedAttribute::prepareIcingaModifiedAttributeForSingleObject($object);
+
+
         if ($object instanceof IcingaObject && $object->hasProperty('object_name')) {
             $msg = sprintf(
                 '%s "%s" has been removed',
@@ -915,6 +933,9 @@ abstract class DirectorObjectForm extends DirectorForm
 
         if ($object->delete()) {
             $this->setSuccessUrl($url);
+        }
+        if ($canBeAppliedLive) {
+            $liveModificationResolver->insertSingleObjectModification($icingaModifiedAttribute);
         }
         // TODO: show object name and so
         $this->redirectOnSuccess($msg);

@@ -2497,6 +2497,16 @@ abstract class IcingaObject extends DbObject implements IcingaConfigRenderer
         return false;
     }
 
+    public function getIcingaObjectType()
+    {
+        return $this->getType();
+    }
+
+    public function getIcingaObjectName()
+    {
+        return $this->getObjectName();
+    }
+
     protected function getType()
     {
         if ($this->type === null) {

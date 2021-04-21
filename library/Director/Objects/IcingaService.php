@@ -166,6 +166,15 @@ class IcingaService extends IcingaObject implements ExportInterface
         }
     }
 
+    public function getIcingaObjectName()
+    {
+        if ($host = $this->get('host')) {
+            return "$host!" . $this->getObjectName();
+        }
+
+        throw new RuntimeException('Cannot determine an Icinga Object Name for a Service not bound to a host');
+    }
+
     /**
      * @return object
      * @throws \Icinga\Exception\NotFoundError
