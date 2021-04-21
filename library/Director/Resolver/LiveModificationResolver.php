@@ -5,7 +5,9 @@ namespace Icinga\Module\Director\Resolver;
 use Icinga\Module\Director\Db;
 use Icinga\Module\Director\DirectorObject\IcingaModifiedAttribute;
 use Icinga\Module\Director\Objects\DirectorActivityLog;
+use Icinga\Module\Director\Objects\IcingaHost;
 use Icinga\Module\Director\Objects\IcingaObject;
+use Icinga\Module\Director\Objects\IcingaService;
 
 class LiveModificationResolver
 {
@@ -23,7 +25,7 @@ class LiveModificationResolver
     public function canBeAppliedLive(IcingaObject $object)
     {
         if ($object->hasBeenModified()) {
-            if ($object->isObject() && is_a($object, 'Icinga\Module\Director\Objects\IcingaHost')) {
+            if ($object->isObject() && $object instanceof IcingaHost) {
                 $modifiedProperties = $object->getModifiedProperties();
                 foreach (self::HOST_DENIED_PROPERTIES as $deniedProperty) {
                     if (in_array($deniedProperty, $modifiedProperties)) {
@@ -31,7 +33,7 @@ class LiveModificationResolver
                     }
                 }
                 return true;
-            } elseif ($object->isObject() && is_a($object, 'Icinga\Module\Director\Objects\IcingaService')) {
+            } elseif ($object->isObject() && $object instanceof IcingaService) {
                 return true;
             }
 

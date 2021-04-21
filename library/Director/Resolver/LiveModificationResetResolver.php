@@ -75,20 +75,18 @@ class LiveModificationResetResolver
                     throw new \RuntimeException(sprintf('Resetting attribute for %s is not supported', $modification->objectType));
             }
 
-            $ignoreProperties = [
-                'object_name',
-                'object_type',
-            ];
             /** @var IcingaObject $object */
             foreach ($modification->modifications as $key => $value) {
                 $currentValue = $object->getResolvedProperty($key);
-                if ($currentValue !== $value && ! in_array($key, $ignoreProperties)) {
+                if ($currentValue !== $value) {
                     $dummy->set($key, $currentValue);
                 }
             }
-            if ($dummy->hasBeenModified()) {
+            if ($dummy->getModifiedProperties()) {
+                // TODO: api props only -> toApiObject -> remove object_name
                 $attribute = IcingaModifiedAttribute::prepareIcingaModifiedAttributeForSingleObject($dummy);
                 $attribute->set('state', 'scheduled_for_reset');
+                $attribute->set('action', 'modify');
                 $cleanupModifications[] = $attribute;
             }
         }
