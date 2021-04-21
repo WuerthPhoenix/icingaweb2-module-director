@@ -6,7 +6,6 @@ use Icinga\Module\Director\Db;
 use Icinga\Module\Director\DirectorObject\IcingaModifiedAttribute;
 use Icinga\Module\Director\DirectorObject\IcingaObjectModifications;
 use Icinga\Module\Director\IcingaConfig\IcingaConfig;
-use Icinga\Module\Director\Objects\DirectorActivityLog;
 use Icinga\Module\Director\Objects\IcingaHost;
 use Icinga\Module\Director\Objects\IcingaObject;
 
@@ -20,15 +19,13 @@ class LiveModificationResetResolver
     }
 
     /**
-     * @param string $lastActivityChecksum
+     * @param IcingaModifiedAttribute[] $modifiedAttributes
      * @return IcingaObjectModifications[]
-     * @throws \Icinga\Exception\NotFoundError
      */
-    public function cleanModificationsForDeployment($lastActivityChecksum)
+    public function cleanModifications(array $modifiedAttributes)
     {
-        $activityId = $this->db->fetchActivityLogIdByChecksum($lastActivityChecksum);
         $modifications = [];
-        foreach ($this->fetchAppliedModificationsBeforeAndIncludingActivityId($activityId) as $modification) {
+        foreach ($modifiedAttributes as $modification) {
             $key = $modification->getUniqueKey();
             if (!isset($modifications[$key])) {
                 $modifications[$key] = new IcingaObjectModifications(
@@ -49,32 +46,43 @@ class LiveModificationResetResolver
     {
         return IcingaModifiedAttribute::loadAll(
             $this->db,
-            $this->db->select()->from('icinga_modified_attributes')
-                ->where('applied = ?', 'y')
+            $this->db->getDbAdapter()->select()->from('icinga_modified_attribute')
+                ->where('state = ?', 'applied')
                 ->where('activity_id <= ?', $id)
                 ->order('id')
         );
     }
 
-    public function createModifiedAttributesToReset(IcingaConfig $config)
+    /**
+     * @param IcingaModifiedAttribute[] $modifiedAttributes
+     * @throws \Icinga\Exception\NotFoundError
+     * @throws \Icinga\Module\Director\Exception\DuplicateKeyException
+     */
+    public function scheduleAttributesToBeResetted(array $modifiedAttributes)
     {
         $cleanupModifications = [];
-        $performedModifications = $this->cleanModificationsForDeployment($config->getLastActivityChecksum());
+        $performedModifications = $this->cleanModifications($modifiedAttributes);
         foreach ($performedModifications as $modification) {
             switch ($modification->objectType) {
                 case 'Host':
                     $object = IcingaHost::load($modification->objectName, $this->db);
-                    $dummy = IcingaObject::createByType('host');
+                    $dummy = IcingaObject::createByType('host', [
+                        'object_name' => $object->get('object_name'),
+                    ], $this->db);
                     break;
 
                 default:
                     throw new \RuntimeException(sprintf('Resetting attribute for %s is not supported', $modification->objectType));
             }
 
+            $ignoreProperties = [
+                'object_name',
+                'object_type',
+            ];
             /** @var IcingaObject $object */
             foreach ($modification->modifications as $key => $value) {
                 $currentValue = $object->getResolvedProperty($key);
-                if ($currentValue !== $value) {
+                if ($currentValue !== $value && ! in_array($key, $ignoreProperties)) {
                     $dummy->set($key, $currentValue);
                 }
             }
